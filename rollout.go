@@ -18,6 +18,11 @@ type Rollout struct {
 	done        chan bool
 }
 
+func NewRollout(zk *zookeeper.Conn) *Rollout {
+	rollout := Rollout{zk: zk}
+	return &rollout
+}
+
 func (r *Rollout) Start(path string) error {
 	log.Printf("Starting Rollout service on %s", path)
 	stat, err := r.zk.Exists(path)
@@ -46,7 +51,7 @@ func (r *Rollout) poll(path string) {
 			continue
 		}
 		newMap := make(map[string]string)
-		err = json.Unmarshal([]byte(data), newMap)
+		err = json.Unmarshal([]byte(data), &newMap)
 		if err != nil {
 			log.Println("Rollout: Couldn't unmarshal zookeeper data", err)
 		}
@@ -78,7 +83,7 @@ func (r *Rollout) FeatureActive(feature string, userId int64, userGroups []strin
 	}
 	// Check user ID first
 	userIds := strings.Split(splitResult[1], ",")
-	userIdString := string(userId)
+	userIdString := strconv.FormatInt(userId, 10)
 	if contains(userIdString, userIds) {
 		return true
 	}
