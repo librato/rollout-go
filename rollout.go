@@ -15,7 +15,7 @@ type Rollout struct {
 	currentData map[string]string
 	mutex       sync.RWMutex
 	stop        chan bool
-	quit        chan bool
+	done        chan bool
 }
 
 func (r *Rollout) Start(path string) error {
@@ -34,10 +34,11 @@ func (r *Rollout) Start(path string) error {
 
 func (r *Rollout) Stop() {
 	r.stop <- true
-	<-r.quit
+	<-r.done
 }
 
 func (r *Rollout) poll(path string) {
+	defer func() { r.done <- true }()
 	for {
 		data, _, watch, err := r.zk.GetW(path)
 		if err != nil {
@@ -60,7 +61,6 @@ func (r *Rollout) poll(path string) {
 			return
 		}
 	}
-	r.quit <- true
 }
 
 func (r *Rollout) FeatureActive(feature string, userId int64, userGroups []string) bool {
