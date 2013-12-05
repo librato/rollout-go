@@ -12,9 +12,10 @@ import (
 
 type Rollout struct {
 	zk          *zookeeper.Conn
-	quitChan    chan bool
 	currentData map[string]string
 	mutex       sync.RWMutex
+	stop        chan bool
+	quit        chan bool
 }
 
 func (r *Rollout) Start(path string) error {
@@ -29,6 +30,11 @@ func (r *Rollout) Start(path string) error {
 
 	go r.poll(path)
 	return nil
+}
+
+func (r *Rollout) Stop() {
+	r.stop <- true
+	<-r.quit
 }
 
 func (r *Rollout) poll(path string) {
@@ -49,11 +55,12 @@ func (r *Rollout) poll(path string) {
 		select {
 		case <-watch:
 			// block until data changes
-		case <-r.quitChan:
+		case <-r.stop:
 			log.Println("Rollout poller shutdown")
 			return
 		}
 	}
+	r.quit <- true
 }
 
 func (r *Rollout) FeatureActive(feature string, userId int64, userGroups []string) bool {
