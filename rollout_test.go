@@ -57,11 +57,14 @@ func makeZK() *zookeeper.Conn {
 	return zk
 }
 
-func makeRollout(zk *zookeeper.Conn) *Rollout {
-	rollout := NewRollout(zk)
+func makeRollout(zk *zookeeper.Conn) Client {
+	rollout := NewClient(zk, path)
 	// 1 == ephemeral
 	zk.Create(path, "{}", 1, zookeeper.WorldACL(zookeeper.PERM_ALL))
-	rollout.Start(path)
+	err := rollout.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
 	return rollout
 }
 

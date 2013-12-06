@@ -10,16 +10,16 @@
     if event.State != zookeeper.STATE_CONNECTED {
         log.Fatal("Cannot initialize zookeeper: ", event.State)
     }
-    r := rollout.NewRollout(zk)
+    client := rollout.NewClient(zk, "/rollout/users")
 
     // The service must be started
-    r.Start()
+    client.Start()
 
     // Check to see if this feature is enabled for this user
-    r.FeatureActive("myfeature", userId, userGroups)
+    client.FeatureActive("myfeature", userId, userGroups)
 
     // Don't forget to stop the service when you're done (usually on shutdown)
-    r.Stop()
+    client.Stop()
  
 
 ## Testing

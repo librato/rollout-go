@@ -10,39 +10,46 @@ import (
 	"sync"
 )
 
-type Rollout struct {
+type Client interface {
+	Start() error
+	Stop()
+	FeatureActive(feature string, userId int64, userGroups []string) bool
+}
+
+type client struct {
 	zk          *zookeeper.Conn
 	currentData map[string]string
 	mutex       sync.RWMutex
 	stop        chan bool
 	done        chan bool
+	path        string
 }
 
-func NewRollout(zk *zookeeper.Conn) *Rollout {
-	rollout := Rollout{zk: zk}
-	return &rollout
+func NewClient(zk *zookeeper.Conn, path string) Client {
+	r := client{zk: zk, path: path}
+	return &r
 }
 
-func (r *Rollout) Start(path string) error {
-	log.Printf("Starting Rollout service on %s", path)
-	stat, err := r.zk.Exists(path)
+func (r *client) Start() error {
+	log.Printf("Starting Rollout service on %s", r.path)
+	stat, err := r.zk.Exists(r.path)
 	if err != nil {
 		return err
 	}
 	if stat == nil {
-		return fmt.Errorf("Rollout path (%s) does not exist", path)
+		return fmt.Errorf("Rollout path (%s) does not exist", r.path)
 	}
 
-	go r.poll(path)
+	go r.poll(r.path)
 	return nil
 }
 
-func (r *Rollout) Stop() {
+func (r *client) Stop() {
 	r.stop <- true
 	<-r.done
 }
 
-func (r *Rollout) poll(path string) {
+func (r *client) poll(path string) {
 	defer func() { r.done <- true }()
 	for {
 		data, _, watch, err := r.zk.GetW(path)
@@ -68,7 +75,7 @@ func (r *Rollout) poll(path string) {
 	}
 }
 
-func (r *Rollout) FeatureActive(feature string, userId int64, userGroups []string) bool {
+func (r *client) FeatureActive(feature string, userId int64, userGroups []string) bool {
 	feature = "feature:" + feature
 	r.mutex.RLock()
 	value, ok := r.currentData[feature]
