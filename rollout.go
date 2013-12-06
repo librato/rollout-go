@@ -43,10 +43,36 @@ func (r *client) Start() error {
 		return err
 	}
 	if stat == nil {
-		return fmt.Errorf("Rollout path (%s) does not exist", r.path)
+		if err = r.createNode(r.path); err != nil {
+			return fmt.Errorf("Could not create rollout path (%s): %s", r.path, err)
+		}
 	}
 
 	go r.poll(r.path)
+	return nil
+}
+
+func (r *client) createNode(node string) error {
+	path := ""
+	for _,segment := range strings.Split(node, "/") {
+		if segment == "" {
+			continue
+		}
+		log.Printf("Looking at segment: %s", segment)
+		path = fmt.Sprintf("%s/%s", path, segment)
+		exists, err := r.zk.Exists(path)
+		if err != nil {
+			return fmt.Errorf("Could not check path (%s): %s", path, err)
+		}
+		if exists == nil {
+			persistentMode := 0
+			_, err = r.zk.Create(path, "{}", persistentMode, zookeeper.WorldACL(zookeeper.PERM_ALL))
+			if err != nil {
+				return fmt.Errorf("Could not create path (%s): %s", path, err)
+			}
+			log.Println("Created zk path: %s", path)
+		}
+	}
 	return nil
 }
 
