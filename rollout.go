@@ -88,7 +88,21 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 		log.Println("Rollout: invalid value for ", feature, ":", value)
 		return false
 	}
-	// Check user ID first
+	featureGroups := strings.Split(splitResult[2], ",")
+	// Short-circuit for pseudo-group "all"
+	if contains("all", featureGroups) {
+		return true
+	}
+	percentage, err := strconv.Atoi(splitResult[0])
+	if err != nil {
+		log.Println("Rollout: Invalid percentage: ", splitResult[0])
+		return false
+	}
+	// Short-circuit for 100%
+	if percentage == 100 {
+		return true
+	}
+	// Check user ID
 	userIds := strings.Split(splitResult[1], ",")
 	userIdString := strconv.FormatInt(userId, 10)
 	if contains(userIdString, userIds) {
@@ -96,17 +110,11 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	}
 
 	// Next, check percentage
-	percentage, err := strconv.Atoi(splitResult[0])
-	if err != nil {
-		log.Println("Rollout: Invalid percentage: ", splitResult[0])
-		return false
-	}
 	if userId%10 < int64(percentage/10) {
 		return true
 	}
 
 	// Lastly, check groups
-	featureGroups := strings.Split(splitResult[2], ",")
 	for _, userGroup := range userGroups {
 		if contains(userGroup, featureGroups) {
 			return true
