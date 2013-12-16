@@ -26,7 +26,13 @@ type client struct {
 }
 
 func NewClient(zk *zookeeper.Conn, path string) Client {
-	r := client{zk: zk, path: path}
+	r := client{
+		zk:          zk,
+		path:        path,
+		currentData: make(map[string]string),
+		stop:        make(chan bool),
+		done:        make(chan bool),
+	}
 	return &r
 }
 
