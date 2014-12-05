@@ -116,7 +116,7 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	}
 
 	// Next, check percentage
-	if userId%10 < int64(percentage/10) {
+	if userId % 100 < int64(percentage) {
 		return true
 	}
 
