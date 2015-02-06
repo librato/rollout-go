@@ -64,6 +64,7 @@ func (r *client) Stop() {
 
 func (r *client) poll(path string) {
 	defer func() { r.done <- true }()
+	defer log.Println("Rollout poller shutdown")
 	for {
 		data, _, watch, err := r.zk.GetW(path)
 		if err != nil {
@@ -71,7 +72,11 @@ func (r *client) poll(path string) {
 			if r.errorHandler != nil {
 				r.errorHandler(err)
 			}
-			time.Sleep(time.Second)
+			select {
+				case <- time.After(time.Second):
+				case <- r.stop:
+					return
+				}
 			continue
 		}
 		newMap := make(map[string]string)
@@ -86,7 +91,6 @@ func (r *client) poll(path string) {
 		case <-watch:
 			// block until data changes
 		case <-r.stop:
-			log.Println("Rollout poller shutdown")
 			return
 		}
 	}
