@@ -3,11 +3,13 @@ package rollout
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/librato/gozk"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/librato/gozk"
 )
 
 type Client interface {
@@ -16,22 +18,27 @@ type Client interface {
 	FeatureActive(feature string, userId int64, userGroups []string) bool
 }
 
+// is called when a ZK error is encountered
+type errorHandlerFunc func(err error)
+
 type client struct {
-	zk          *zookeeper.Conn
-	currentData map[string]string
-	mutex       sync.RWMutex
-	stop        chan bool
-	done        chan bool
-	path        string
+	zk           *zookeeper.Conn
+	currentData  map[string]string
+	mutex        sync.RWMutex
+	stop         chan bool
+	done         chan bool
+	path         string
+	errorHandler errorHandlerFunc
 }
 
-func NewClient(zk *zookeeper.Conn, path string) Client {
+func NewClient(zk *zookeeper.Conn, path string, errorHandler errorHandlerFunc) Client {
 	r := client{
-		zk:          zk,
-		path:        path,
-		currentData: make(map[string]string),
-		stop:        make(chan bool),
-		done:        make(chan bool),
+		zk:           zk,
+		path:         path,
+		currentData:  make(map[string]string),
+		stop:         make(chan bool),
+		done:         make(chan bool),
+		errorHandler: errorHandler,
 	}
 	return &r
 }
@@ -61,6 +68,10 @@ func (r *client) poll(path string) {
 		data, _, watch, err := r.zk.GetW(path)
 		if err != nil {
 			log.Println("Rollout: Failed to set watch", err)
+			if r.errorHandler != nil {
+				r.errorHandler(err)
+			}
+			time.Sleep(time.Second)
 			continue
 		}
 		newMap := make(map[string]string)
@@ -116,7 +127,7 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	}
 
 	// Next, check percentage
-	if userId % 100 < int64(percentage) {
+	if userId%100 < int64(percentage) {
 		return true
 	}
 
