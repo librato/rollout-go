@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/librato/gozk"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type Client interface {
@@ -22,7 +22,7 @@ type Client interface {
 type errorHandlerFunc func(err error)
 
 type client struct {
-	zk           *zookeeper.Conn
+	zk           *zk.Conn
 	currentData  map[string]string
 	mutex        sync.RWMutex
 	stop         chan bool
@@ -31,7 +31,7 @@ type client struct {
 	errorHandler errorHandlerFunc
 }
 
-func NewClient(zk *zookeeper.Conn, path string, errorHandler errorHandlerFunc) Client {
+func NewClient(zk *zk.Conn, path string, errorHandler errorHandlerFunc) Client {
 	r := client{
 		zk:           zk,
 		path:         path,
@@ -45,11 +45,11 @@ func NewClient(zk *zookeeper.Conn, path string, errorHandler errorHandlerFunc) C
 
 func (r *client) Start() error {
 	log.Printf("Starting Rollout service on %s", r.path)
-	stat, err := r.zk.Exists(r.path)
+	exists, _, err := r.zk.Exists(r.path)
 	if err != nil {
 		return err
 	}
-	if stat == nil {
+	if !exists {
 		return fmt.Errorf("Rollout path (%s) does not exist", r.path)
 	}
 
