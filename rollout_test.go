@@ -1,16 +1,17 @@
 package rollout
 
 import (
-	"github.com/librato/gozk"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 var (
-	zk      = makeZK()
-	path    = "/rollout-go-test"
-	rollout = makeRollout(zk)
+	zookeeper = makeZK()
+	path      = "/rollout-go-test"
+	rollout   = makeRollout(zookeeper)
 )
 
 func TestUserId(t *testing.T) {
@@ -52,22 +53,22 @@ func TestPercentage(t *testing.T) {
 	assert(t, !rollout.FeatureActive("nosuchfeature", 1, groups), "feature should not be active")
 }
 
-func makeZK() *zookeeper.Conn {
-	zk, session, err := zookeeper.Dial("localhost:2181", 5e9)
+func makeZK() *zk.Conn {
+	zookeeper, session, err := zk.Connect([]string{"localhost:2181"}, 5e9)
 	if err != nil {
 		log.Fatal(err)
 	}
 	event := <-session
-	if event.State != zookeeper.STATE_CONNECTED {
+	if event.Type != zk.EventSession {
 		log.Fatal("Cannot initialize zookeeper: ", event.State)
 	}
-	return zk
+	return zookeeper
 }
 
-func makeRollout(zk *zookeeper.Conn) Client {
-	rollout := NewClient(zk, path, nil)
+func makeRollout(zookeeper *zk.Conn) Client {
+	rollout := NewClient(zookeeper, path, nil)
 	// 1 == ephemeral
-	zk.Create(path, "{}", 1, zookeeper.WorldACL(zookeeper.PERM_ALL))
+	zookeeper.Create(path, []byte("{}"), 1, zk.WorldACL(zk.PermAll))
 	err := rollout.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -76,7 +77,7 @@ func makeRollout(zk *zookeeper.Conn) Client {
 }
 
 func setData(data string) error {
-	_, err := zk.Set(path, data, -1)
+	_, err := zookeeper.Set(path, []byte(data), -1)
 	time.Sleep(100 * time.Millisecond)
 	return err
 }
