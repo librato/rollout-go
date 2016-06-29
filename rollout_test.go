@@ -40,10 +40,10 @@ func TestAll(t *testing.T) {
 
 func TestPercentage(t *testing.T) {
 	groups := []string{"foo"}
-	setData(`{"feature:hello": "0||"}`)
+	setData(`{"feature:hello": "0.0||"}`)
 	assert(t, !rollout.FeatureActive("hello", 1, groups), "feature should not be active")
 	assert(t, !rollout.FeatureActive("hello", 2, groups), "feature should not be active")
-	setData(`{"feature:hello": "25||"}`)
+	setData(`{"feature:hello": "25.0||"}`)
 	assert(t, rollout.FeatureActive("hello", 1, groups), "feature should be active")
 	assert(t, !rollout.FeatureActive("hello", 26, groups), "feature should not be active")
 	assert(t, !rollout.FeatureActive("nosuchfeature", 1, groups), "feature should not be active")

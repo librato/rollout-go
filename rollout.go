@@ -114,11 +114,12 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	if contains("all", featureGroups) {
 		return true
 	}
-	percentage, err := strconv.Atoi(splitResult[0])
+	percentageFloat, err := strconv.ParseFloat(splitResult[0], 64)
 	if err != nil {
 		log.Println("Rollout: Invalid percentage: ", splitResult[0])
 		return false
 	}
+	percentage := int(percentageFloat)
 	// Short-circuit for 100%
 	if percentage == 100 {
 		return true
