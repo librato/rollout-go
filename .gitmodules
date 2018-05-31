@@ -1,3 +1,0 @@
-[submodule "src/github.com/librato/gozk"]
-	path = src/github.com/librato/gozk
-	url = https://github.com/librato/gozk
