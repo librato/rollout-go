@@ -3,13 +3,15 @@ package rollout
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 type ZookeeperClient struct {
 	sync.Mutex
@@ -19,7 +21,7 @@ type ZookeeperClient struct {
 }
 
 func NewZookeeperClient(hostString string) *ZookeeperClient {
-	log.Println("creating a new Zookeeper client with hosts ", hostString)
+	log.Info("creating a new Zookeeper client with hosts ", hostString)
 	return &ZookeeperClient{
 		Errors: make(chan error),
 		Hosts:  strings.Split(hostString, ","),
@@ -27,7 +29,7 @@ func NewZookeeperClient(hostString string) *ZookeeperClient {
 }
 
 func (zkc *ZookeeperClient) Start() {
-	log.Println("starting the zookeeper client ")
+	log.Info("starting the zookeeper client ")
 
 	conn, eventChan, err := zk.Connect(zkc.Hosts, 30*time.Second)
 	if err != nil {
@@ -39,21 +41,21 @@ func (zkc *ZookeeperClient) Start() {
 		log.Fatal("cannot initialize zookeeper. state: ", event.State)
 	}
 
-	log.Println("connected to Zookeeper")
+	log.Info("connected to Zookeeper")
 	zkc.Conn = conn
 
 	go func() {
 		for {
 			for event := range eventChan {
-				log.Println("Got event ", event)
+				log.Debug("Got event ", event)
 				if event.Type == zk.EventSession {
 					switch event.State {
 					case zk.StateUnknown, zk.StateExpired:
-						log.Println("fatal zookeeper event, shutting down. state:  ", event.State)
+						log.Error("fatal zookeeper event, shutting down. state:  ", event.State)
 						zkc.Errors <- fmt.Errorf("got non-recoverable event: %+v", event)
 					case zk.StateConnected, zk.StateHasSession:
 					default:
-						log.Println("received unknown ZK event ", event)
+						log.Info("received unknown ZK event ", event)
 					}
 				}
 			}
@@ -68,7 +70,7 @@ func (zkc *ZookeeperClient) CreateFullNode(node string) error {
 		return errors.New("specify the full path to the new node")
 	}
 
-	log.Println("creating ZK node " + node)
+	log.Info("creating ZK node " + node)
 
 	currpath := ""
 	for _, pathseg := range strings.Split(node, "/") {
@@ -78,7 +80,7 @@ func (zkc *ZookeeperClient) CreateFullNode(node string) error {
 		}
 
 		currpath = currpath + "/" + pathseg
-		log.Println("creating zk node " + currpath)
+		log.Info("creating zk node " + currpath)
 		if exists, _, err := zkc.Exists(currpath); err != nil {
 			return err
 		} else if exists {
@@ -149,7 +151,7 @@ func NewWatchingClient(
 // executes a gofunc that updates the local data from the bytes in the znode when its data
 // changes.
 func (wc *WatchingClient) Start() error {
-	log.Printf("Starting Rollout service on %s", wc.zNode)
+	log.Info("Starting Rollout service on %s", wc.zNode)
 	exists, _, err := wc.Exists(wc.zNode)
 	if err != nil {
 		return err
@@ -172,13 +174,13 @@ func (wc *WatchingClient) Stop() {
 func (wc *WatchingClient) Write(thing interface{}) error {
 	bytes := make([]byte, 0)
 	if err := wc.Marshal(bytes, thing); err != nil {
-		log.Printf("Could not marshal a thing to znode %v: %v\n", wc.zNode, err)
+		log.Error("Could not marshal a thing to znode %v: %v\n", wc.zNode, err)
 		return err
 	}
 
 	// don't set our local vars -- it'll be updated in poll()
 	if _, err := wc.Set(wc.zNode, bytes, wc.nodeVersion); err != nil {
-		log.Printf("Could not set bytes to znode %v: %v\n", wc.zNode, err)
+		log.Error("Could not set bytes to znode %v: %v\n", wc.zNode, err)
 		return err
 	}
 
@@ -186,14 +188,14 @@ func (wc *WatchingClient) Write(thing interface{}) error {
 }
 
 func (wc *WatchingClient) poll() {
-	defer log.Println("exiting from WatchingClient polling loop")
+	defer log.Info("exiting from WatchingClient polling loop")
 
 	for {
 		data, stat, watch, err := wc.ZookeeperClient.GetW(wc.zNode)
 		if err != nil {
-			log.Printf("failed to get data/set watch: %v\n", err)
-			if wc.errorHandler != nil {
-				wc.errorHandler(err)
+			log.Error("failed to get data/set watch: %v\n", err)
+			if wc.ErrorHandler != nil {
+				wc.ErrorHandler(err)
 			}
 			select {
 			case <-time.After(time.Second):
@@ -205,7 +207,7 @@ func (wc *WatchingClient) poll() {
 
 		wc.Lock()
 		if err := wc.Unmarshal(data); err != nil {
-			log.Printf("error while unmarshalling: %v -- rewatching node, leaving data unchanged\n", err)
+			log.Error("error while unmarshalling: %v -- rewatching node, leaving data unchanged\n", err)
 			// re-get the watch so we know when/if the bad data changes
 			_, _, watch, err = wc.ZookeeperClient.GetW(wc.zNode)
 			if err != nil {
@@ -217,7 +219,7 @@ func (wc *WatchingClient) poll() {
 
 		select {
 		case <-watch:
-			log.Printf("watch triggered, rereading system messages node %s\n", wc.zNode)
+			log.Debug("watch triggered, rereading system messages node %s\n", wc.zNode)
 		case <-wc.Done:
 			return
 		}
