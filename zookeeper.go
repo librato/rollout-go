@@ -63,12 +63,17 @@ func (zkc *ZookeeperClient) Start() {
 }
 
 // Creates a znode at the given string, including any intervening, required paths
-func (zkc *ZookeeperClient) CreateFullNode(node string) error {
+func (zkc *ZookeeperClient) CreateFullNode(node string, ephemeral bool) error {
 	if strings.HasPrefix(node, "/") == false {
 		return errors.New("specify the full path to the new node")
 	}
 
 	log.Info("creating ZK node ", node)
+
+	var flags int32 = 0
+	if ephemeral {
+		flags = 1
+	}
 
 	currpath := ""
 	for _, pathseg := range strings.Split(node, "/") {
@@ -85,7 +90,7 @@ func (zkc *ZookeeperClient) CreateFullNode(node string) error {
 			continue
 		}
 
-		if _, err := zkc.Create(currpath, []byte(""), 0, zk.WorldACL(zk.PermAll)); err != nil {
+		if _, err := zkc.Create(currpath, []byte(""), flags, zk.WorldACL(zk.PermAll)); err != nil {
 			return err
 		}
 
