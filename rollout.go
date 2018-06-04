@@ -70,11 +70,6 @@ func (r *client) poll(path string) {
 			if r.errorHandler != nil {
 				r.errorHandler(err)
 			}
-			// re-get the watch so we know when/if the bad data changes
-			_, _, watch, err = r.zk.GetW(path)
-			if err != nil {
-				log.Fatal("could not re-establish a watch after unmarshalling error. Nothing to do but exit")
-			}
 
 			select {
 			case <-time.After(time.Second):
@@ -86,6 +81,11 @@ func (r *client) poll(path string) {
 
 		if err := r.swapData(data); err != nil {
 			log.Error("Rollout: Couldn't unmarshal zookeeper data", err)
+			// re-get the watch so we know when/if the bad data changes
+			_, _, watch, err = r.zk.GetW(path)
+			if err != nil {
+				log.Fatal("could not re-establish a watch after unmarshalling error. Nothing to do but exit")
+			}
 		}
 
 		select {
