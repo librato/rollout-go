@@ -100,7 +100,7 @@ func (r *client) poll(path string) {
 
 func (r *client) swapData(data []byte) error {
 	newMap := make(map[string]string)
-	if err := json.Unmarshal([]byte(data), &newMap); err != nil {
+	if err := json.Unmarshal(data, &newMap); err != nil {
 		return err
 	}
 
