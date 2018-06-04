@@ -7,10 +7,7 @@ import (
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 type ZookeeperClient struct {
 	*zk.Conn
@@ -19,7 +16,7 @@ type ZookeeperClient struct {
 }
 
 func NewZookeeperClient(hostString string) *ZookeeperClient {
-	log.Info("creating a new Zookeeper client with hosts ", hostString)
+	rolloutLog.Info("creating a new Zookeeper client with hosts ", hostString)
 	return &ZookeeperClient{
 		Errors: make(chan error),
 		Hosts:  strings.Split(hostString, ","),
@@ -27,33 +24,33 @@ func NewZookeeperClient(hostString string) *ZookeeperClient {
 }
 
 func (zkc *ZookeeperClient) Start() {
-	log.Info("starting the zookeeper client")
+	rolloutLog.Info("starting the zookeeper client")
 
 	conn, eventChan, err := zk.Connect(zkc.Hosts, 30*time.Second)
 	if err != nil {
-		log.Fatal("err while connecting to zookeeper: ", err)
+		rolloutLog.Fatal("err while connecting to zookeeper: ", err)
 	}
 
 	event := <-eventChan
 	if event.Type != zk.EventSession {
-		log.Fatal("cannot initialize zookeeper. state: ", event.State)
+		rolloutLog.Fatal("cannot initialize zookeeper. state: ", event.State)
 	}
 
-	log.Info("connected to Zookeeper")
+	rolloutLog.Info("connected to Zookeeper")
 	zkc.Conn = conn
 
 	go func() {
 		for {
 			for event := range eventChan {
-				log.Debug("Got event ", event)
+				rolloutLog.Debug("got event ", event)
 				if event.Type == zk.EventSession {
 					switch event.State {
 					case zk.StateUnknown, zk.StateExpired:
-						log.Error("fatal zookeeper event, shutting down. state: ", event.State)
+						rolloutLog.Error("fatal zookeeper event, shutting down. state: ", event.State)
 						zkc.Errors <- fmt.Errorf("got non-recoverable event: %+v", event)
 					case zk.StateConnected, zk.StateHasSession:
 					default:
-						log.Info("received unknown ZK event ", event)
+						rolloutLog.Info("received unknown ZK event ", event)
 					}
 				}
 			}
@@ -68,7 +65,7 @@ func (zkc *ZookeeperClient) CreateFullNode(node string, ephemeral bool) error {
 		return errors.New("specify the full path to the new node")
 	}
 
-	log.Info("creating ZK node ", node)
+	rolloutLog.Info("creating ZK node ", node)
 
 	var flags int32 = 0
 	if ephemeral {
@@ -83,7 +80,7 @@ func (zkc *ZookeeperClient) CreateFullNode(node string, ephemeral bool) error {
 		}
 
 		currpath = currpath + "/" + pathseg
-		log.Info("creating zk node ", currpath)
+		rolloutLog.Debug("creating zk node ", currpath)
 		if exists, _, err := zkc.Exists(currpath); err != nil {
 			return err
 		} else if exists {

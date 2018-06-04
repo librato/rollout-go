@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
+	"log"
 )
 
 type Client interface {
@@ -42,7 +43,7 @@ func NewClient(zk *zk.Conn, path string, errorHandler errorHandlerFunc) Client {
 }
 
 func (r *client) Start() error {
-	log.Info("Starting Rollout service on ", r.path)
+	rolloutLog.Info("Starting Rollout service on ", r.path)
 	exists, _, err := r.zk.Exists(r.path)
 	if err != nil {
 		return err
@@ -62,11 +63,11 @@ func (r *client) Stop() {
 
 func (r *client) poll(path string) {
 	defer func() { r.done <- true }()
-	defer log.Info("Rollout poller shutdown")
+	defer rolloutLog.Info("rollout poller shutdown")
 	for {
 		data, _, watch, err := r.zk.GetW(path)
 		if err != nil {
-			log.Error("Rollout: Failed to set watch", err)
+			rolloutLog.Error("rollout failed to set watch: ", err)
 			if r.errorHandler != nil {
 				r.errorHandler(err)
 			}
@@ -80,7 +81,7 @@ func (r *client) poll(path string) {
 		}
 
 		if err := r.swapData(data); err != nil {
-			log.Error("Rollout: Couldn't unmarshal zookeeper data", err)
+			rolloutLog.Error("rollout couldn't unmarshal zookeeper data: ", err)
 			// re-get the watch so we know when/if the bad data changes
 			_, _, watch, err = r.zk.GetW(path)
 			if err != nil {
@@ -120,7 +121,7 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	}
 	splitResult := strings.Split(value, "|")
 	if len(splitResult) != 3 {
-		log.Error("Rollout: invalid value for ", feature, ":", value)
+		rolloutLog.Errorf("Rollout: invalid value for %s: %s", feature, value)
 		return false
 	}
 	featureGroups := strings.Split(splitResult[2], ",")
@@ -130,7 +131,7 @@ func (r *client) FeatureActive(feature string, userId int64, userGroups []string
 	}
 	percentageFloat, err := strconv.ParseFloat(splitResult[0], 64)
 	if err != nil {
-		log.Error("Rollout: Invalid percentage: ", splitResult[0])
+		rolloutLog.Error("rollout invalid percentage: ", splitResult[0])
 		return false
 	}
 	percentage := int(percentageFloat)
