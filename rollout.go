@@ -8,8 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/pkg/errors"
+
 	"log"
+
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type Client interface {
@@ -108,6 +111,27 @@ func (r *client) swapData(data []byte) error {
 	defer r.Unlock()
 	r.currentData = newMap
 	return nil
+}
+
+// RawPercentage returns the raw percentage from the rollout section
+func (r *client) RawPercentage(feature string) (float64, error) {
+	feature = "feature:" + feature
+	r.RLock()
+	value, ok := r.currentData[feature]
+	r.RUnlock()
+
+	if !ok {
+		return 0.0, errors.New(fmt.Sprintf("feature not found: %s", feature))
+	}
+	splitResult := strings.Split(value, "|")
+	if len(splitResult) != 3 {
+		return 0.0, errors.New(fmt.Sprintf("invalid value for %s: %s", feature, value))
+	}
+	percentageFloat, err := strconv.ParseFloat(splitResult[0], 64)
+	if err != nil {
+		return 0.0, errors.Wrap(err, fmt.Sprintf("rollout invalid percentage: %v", splitResult[0]))
+	}
+	return percentageFloat, nil
 }
 
 func (r *client) FeatureActive(feature string, userId int64, userGroups []string) bool {
