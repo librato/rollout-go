@@ -51,36 +51,36 @@ func TestPercentage(t *testing.T) {
 func TestRawPercentage(t *testing.T) {
 	rollout := &client{currentData: make(map[string]string)}
 	t.Run("happy path", func(t *testing.T) {
-		rollout.swapData([]byte(`{"feature:apm_sample_rate_factor_org123456": "75.0||"}`))
-		r, e := rollout.RawPercentage("apm_sample_rate_factor_org123456")
-		assert(t, r == 75.0, "rawpercentage happy path test b0rked")
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0||"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 75.0, "rawpercentage happy path test broken")
 		assert(t, e == nil, "rawpercentage happy path test got non-nil error")
 	})
 	t.Run("missing org", func(t *testing.T) {
-		rollout.swapData([]byte(`{"feature:apm_sample_rate_factor_org123456": "75.0||"}`))
-		r, e := rollout.RawPercentage("apm_sample_rate_factor_org111111")
-		assert(t, r == 0.0, "rawpercentage missing org test b0rked")
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0||"}`))
+		r, e := rollout.RawPercentage("percentage_111111")
+		assert(t, r == 0.0, "rawpercentage missing org test broken")
 		assert(t, e != nil, "rawpercentage missing org test got nil error")
 		assert(t,
-			e.Error() == "feature not found: feature:apm_sample_rate_factor_org111111",
+			e.Error() == "feature not found: feature:percentage_111111",
 			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
 	})
 	t.Run("bad data (splits)", func(t *testing.T) {
-		rollout.swapData([]byte(`{"feature:apm_sample_rate_factor_org123456": "75.0|"}`))
-		r, e := rollout.RawPercentage("apm_sample_rate_factor_org123456")
-		assert(t, r == 0.0, "rawpercentage bad data (splits) test b0rked")
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0|"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 0.0, "rawpercentage bad data (splits) test broken")
 		assert(t, e != nil, "rawpercentage bad data (splits) test got nil error")
 		assert(t,
-			e.Error() == "invalid value for feature:apm_sample_rate_factor_org123456: 75.0|",
+			e.Error() == "invalid value for feature:percentage_123456: 75.0|",
 			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
 	})
 	t.Run("bad data (values)", func(t *testing.T) {
-		rollout.swapData([]byte(`{"feature:apm_sample_rate_factor_org123456": "dorkfish||"}`))
-		r, e := rollout.RawPercentage("apm_sample_rate_factor_org123456")
-		assert(t, r == 0.0, "rawpercentage bad data (values) test b0rked")
+		rollout.swapData([]byte(`{"feature:percentage_123456": "garbage||"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 0.0, "rawpercentage bad data (values) test broken")
 		assert(t, e != nil, "rawpercentage bad data (values) test got nil error")
 		assert(t,
-			e.Error() == "rollout invalid percentage: dorkfish",
+			e.Error() == "rollout invalid percentage: garbage",
 			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
 	})
 }
