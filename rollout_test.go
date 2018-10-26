@@ -62,8 +62,9 @@ func TestRawPercentage(t *testing.T) {
 		assert(t, r == 0.0, "rawpercentage missing org test broken")
 		assert(t, e != nil, "rawpercentage missing org test got nil error")
 		assert(t,
-			e.Error() == "feature not found: feature:percentage_111111",
+			e.Error() == "feature not found",
 			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
+		assert(t, e == ErrFeatureNotFound, "wrong error returned")
 	})
 	t.Run("bad data (splits)", func(t *testing.T) {
 		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0|"}`))

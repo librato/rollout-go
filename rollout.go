@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -112,6 +113,9 @@ func (r *client) swapData(data []byte) error {
 	return nil
 }
 
+// ErrFeatureNotFound can be detected to inform better defaulting behaviors
+var ErrFeatureNotFound = errors.New("feature not found")
+
 // RawPercentage returns the raw percentage from the rollout section
 func (r *client) RawPercentage(feature string) (float64, error) {
 	feature = "feature:" + feature
@@ -120,7 +124,7 @@ func (r *client) RawPercentage(feature string) (float64, error) {
 	r.RUnlock()
 
 	if !ok {
-		return 0.0, fmt.Errorf("feature not found: %s", feature)
+		return 0.0, ErrFeatureNotFound
 	}
 	splitResult := strings.Split(value, "|")
 	if len(splitResult) != 3 {
