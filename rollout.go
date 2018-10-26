@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"log"
 
 	"github.com/samuel/go-zookeeper/zk"
@@ -18,6 +16,7 @@ import (
 type Client interface {
 	Start() error
 	Stop()
+	RawPercentage(feature string) (float64, error)
 	FeatureActive(feature string, userId int64, userGroups []string) bool
 }
 
@@ -121,15 +120,15 @@ func (r *client) RawPercentage(feature string) (float64, error) {
 	r.RUnlock()
 
 	if !ok {
-		return 0.0, errors.New(fmt.Sprintf("feature not found: %s", feature))
+		return 0.0, fmt.Errorf("feature not found: %s", feature)
 	}
 	splitResult := strings.Split(value, "|")
 	if len(splitResult) != 3 {
-		return 0.0, errors.New(fmt.Sprintf("invalid value for %s: %s", feature, value))
+		return 0.0, fmt.Errorf("invalid value for %s: %s", feature, value)
 	}
 	percentageFloat, err := strconv.ParseFloat(splitResult[0], 64)
 	if err != nil {
-		return 0.0, errors.Wrap(err, fmt.Sprintf("rollout invalid percentage: %v", splitResult[0]))
+		return 0.0, fmt.Errorf("rollout invalid percentage: %v", splitResult[0])
 	}
 	return percentageFloat, nil
 }

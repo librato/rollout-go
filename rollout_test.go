@@ -80,7 +80,7 @@ func TestRawPercentage(t *testing.T) {
 		assert(t, r == 0.0, "rawpercentage bad data (values) test b0rked")
 		assert(t, e != nil, "rawpercentage bad data (values) test got nil error")
 		assert(t,
-			e.Error() == "rollout invalid percentage: dorkfish: strconv.ParseFloat: parsing \"dorkfish\": invalid syntax",
+			e.Error() == "rollout invalid percentage: dorkfish",
 			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
 	})
 }
