@@ -1,6 +1,7 @@
 package rollout
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -45,6 +46,44 @@ func TestPercentage(t *testing.T) {
 	assert(t, rollout.FeatureActive("hello", 1, groups), "feature should be active")
 	assert(t, rollout.FeatureActive("hello", 26, groups), "feature should be active")
 	assert(t, !rollout.FeatureActive("nosuchfeature", 1, groups), "feature should not be active")
+}
+
+func TestRawPercentage(t *testing.T) {
+	rollout := &client{currentData: make(map[string]string)}
+	t.Run("happy path", func(t *testing.T) {
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0||"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 75.0, "rawpercentage happy path test broken")
+		assert(t, e == nil, "rawpercentage happy path test got non-nil error")
+	})
+	t.Run("missing org", func(t *testing.T) {
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0||"}`))
+		r, e := rollout.RawPercentage("percentage_111111")
+		assert(t, r == 0.0, "rawpercentage missing org test broken")
+		assert(t, e != nil, "rawpercentage missing org test got nil error")
+		assert(t,
+			e.Error() == "feature not found",
+			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
+		assert(t, e == ErrFeatureNotFound, "wrong error returned")
+	})
+	t.Run("bad data (splits)", func(t *testing.T) {
+		rollout.swapData([]byte(`{"feature:percentage_123456": "75.0|"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 0.0, "rawpercentage bad data (splits) test broken")
+		assert(t, e != nil, "rawpercentage bad data (splits) test got nil error")
+		assert(t,
+			e.Error() == "invalid value for feature:percentage_123456: 75.0|",
+			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
+	})
+	t.Run("bad data (values)", func(t *testing.T) {
+		rollout.swapData([]byte(`{"feature:percentage_123456": "garbage||"}`))
+		r, e := rollout.RawPercentage("percentage_123456")
+		assert(t, r == 0.0, "rawpercentage bad data (values) test broken")
+		assert(t, e != nil, "rawpercentage bad data (values) test got nil error")
+		assert(t,
+			e.Error() == "rollout invalid percentage: garbage",
+			fmt.Sprintf("rawpercentage missing org test got wrong error: %v", e.Error()))
+	})
 }
 
 func assert(t *testing.T, condition bool, explanation interface{}) {
